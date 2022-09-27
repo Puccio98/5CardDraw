@@ -3,6 +3,7 @@
 #include <time.h>
 #include "listlib.c"
 #include "vectorlib.c"
+#include "sortingAlgorithm.c"
 
 //DEBUG PRINTFLAG
 void printFlag(int flag[4][13]) {
@@ -43,6 +44,7 @@ int nplayers;
 int call = 1;
 int raise = 0;
 int tableBet;
+int winScore;
 //endregion
 
 //region basic functions
@@ -386,16 +388,16 @@ void swap(struct node_player *player, int nplayers, int flag[4][13]) {
 }
 
 //endregion
-//region point calculator
+//region point calculator internal functions
 int checkRoyalFlush(int card[], int cardSeed[], int royalFlush) {
     if (cardSeed[0] == cardSeed[1] && cardSeed[0] == cardSeed[2] && cardSeed[0] == cardSeed[3] &&
         cardSeed[0] == cardSeed[4]) {
         if (card[0] + card[1] + card[2] + card[3] + card[4] == 47) {
             if (card[0] == 1 || card[1] == 1 || card[2] == 1 || card[3] == 1 || card[4] == 1) {
                 royalFlush = 1;
-            } else {}
-        } else {}
-    } else {}
+            }
+        }
+    }
     return royalFlush;
 }
 
@@ -450,7 +452,7 @@ int checkPoker(int card[], int poker, int *pokerValue) {
     for (int i = 1; i < 5; i++) {
         if (card[0] == card[i]) {
             j++;
-        } else {}
+        }
     }
     if (j == 3) {
         poker = 1;
@@ -459,13 +461,13 @@ int checkPoker(int card[], int poker, int *pokerValue) {
         for (int i = 2; i < 5; i++) {
             if (card[1] == card[i]) {
                 j++;
-            } else {}
+            }
         }
         if (j == 3) {
             poker = 1;
             pokerValue = card[1];
-        } else {}
-    } else {}
+        }
+    }
     if (*pokerValue == 1) {
         *pokerValue = 15;
     }
@@ -477,7 +479,7 @@ int checkHouse(int card[], int house, int *tris) {
     for (i = 1, j = 0; i < 5; i++) {
         if (card[0] == card[i]) {
             j++;
-        } else {}
+        }
     }
     if (j == 2) {
         if (card[0] != card[1]) {
@@ -540,7 +542,7 @@ int checkStraight(int card[], int straight, int *straightValue) {
                 straight = 1;
                 *straightValue = 15;
             }
-        } else {}
+        }
     } else if ((card[0] + card[1] + card[2] + card[3] + card[4]) % 5 == 0) {
         if (card[0] + card[1] + card[2] + card[3] + card[4] == 15 &&
             card[0] * card[1] * card[2] * card[3] * card[4] == 120) {
@@ -697,7 +699,6 @@ int checkPair(int card[], int pair, int *pairValue) {
     } else if (card[3] == card[4]) {
         pair = 1;
         *pairValue = card[3];
-    } else {
     }
     return pair;
 }
@@ -721,151 +722,7 @@ int checkHighCard(int card[], int *highCard) {
 }
 //endregion
 
-int main() {
-    srand(time(0));
-    rules();
-    //Check number of players
-
-    printf("How many players are there?\n");
-    scanf("%d", &nplayers);
-    fflush(stdin);
-    while (nplayers != 2 && nplayers != 3 && nplayers != 4 && nplayers != 5 && nplayers != 6) {
-        printf("Incorrect input, please choose a number between 2 and 6\n");
-        scanf("%d", &nplayers);
-        fflush(stdin);
-    }
-
-    struct node_player *nodeFirstPlayer = initList(nplayers);
-
-    //ante: each player pays 1 fiche to enter the game
-    ante(nodeFirstPlayer, nplayers, &tableBet);
-    printf("All players paid 1 fiche for ante.\n");
-
-    //cards are assigned to each player
-    int feedCards = 1;
-    //Debug Mode
-    if (feedCards == 1) {
-//-----------------------1---------------------------
-        nodeFirstPlayer->p.cardSeed[0] = 2;
-        nodeFirstPlayer->p.cardValue[0] = 4;
-
-        nodeFirstPlayer->p.cardSeed[1] = 1;
-        nodeFirstPlayer->p.cardValue[1] = 4;
-
-        nodeFirstPlayer->p.cardSeed[2] = 3;
-        nodeFirstPlayer->p.cardValue[2] = 4;
-
-        nodeFirstPlayer->p.cardSeed[3] = 1;
-        nodeFirstPlayer->p.cardValue[3] = 10;
-
-        nodeFirstPlayer->p.cardSeed[4] = 1;
-        nodeFirstPlayer->p.cardValue[4] = 4;
-
-        nodeFirstPlayer = nodeFirstPlayer->nextNodo;
-//--------------------------2----------------------
-        nodeFirstPlayer->p.cardSeed[0] = 1;
-        nodeFirstPlayer->p.cardValue[0] = 1;
-
-        nodeFirstPlayer->p.cardSeed[1] = 1;
-        nodeFirstPlayer->p.cardValue[1] = 1;
-
-        nodeFirstPlayer->p.cardSeed[2] = 1;
-        nodeFirstPlayer->p.cardValue[2] = 1;
-
-        nodeFirstPlayer->p.cardSeed[3] = 1;
-        nodeFirstPlayer->p.cardValue[3] = 1;
-
-        nodeFirstPlayer->p.cardSeed[4] = 1;
-        nodeFirstPlayer->p.cardValue[4] = 4;
-
-        nodeFirstPlayer = nodeFirstPlayer->nextNodo;
-//------------------------3----------------------
-        nodeFirstPlayer->p.cardSeed[0] = 1;
-        nodeFirstPlayer->p.cardValue[0] = 4;
-
-        nodeFirstPlayer->p.cardSeed[1] = 1;
-        nodeFirstPlayer->p.cardValue[1] = 4;
-
-        nodeFirstPlayer->p.cardSeed[2] = 1;
-        nodeFirstPlayer->p.cardValue[2] = 4;
-
-        nodeFirstPlayer->p.cardSeed[3] = 1;
-        nodeFirstPlayer->p.cardValue[3] = 3;
-
-        nodeFirstPlayer->p.cardSeed[4] = 1;
-        nodeFirstPlayer->p.cardValue[4] = 4;
-
-        nodeFirstPlayer = nodeFirstPlayer->nextNodo;
-//------------------------4--------------------------
-        nodeFirstPlayer->p.cardSeed[0] = 1;
-        nodeFirstPlayer->p.cardValue[0] = 1;
-
-        nodeFirstPlayer->p.cardSeed[1] = 1;
-        nodeFirstPlayer->p.cardValue[1] = 1;
-
-        nodeFirstPlayer->p.cardSeed[2] = 1;
-        nodeFirstPlayer->p.cardValue[2] = 1;
-
-        nodeFirstPlayer->p.cardSeed[3] = 1;
-        nodeFirstPlayer->p.cardValue[3] = 1;
-
-        nodeFirstPlayer->p.cardSeed[4] = 1;
-        nodeFirstPlayer->p.cardValue[4] = 1;
-
-        nodeFirstPlayer = nodeFirstPlayer->nextNodo;
-//--------------------------5-----------------------------
-        nodeFirstPlayer->p.cardSeed[0] = 1;
-        nodeFirstPlayer->p.cardValue[0] = 1;
-
-        nodeFirstPlayer->p.cardSeed[1] = 1;
-        nodeFirstPlayer->p.cardValue[1] = 1;
-
-        nodeFirstPlayer->p.cardSeed[2] = 1;
-        nodeFirstPlayer->p.cardValue[2] = 1;
-
-        nodeFirstPlayer->p.cardSeed[3] = 1;
-        nodeFirstPlayer->p.cardValue[3] = 1;
-
-        nodeFirstPlayer->p.cardSeed[4] = 1;
-        nodeFirstPlayer->p.cardValue[4] = 5;
-
-        nodeFirstPlayer = nodeFirstPlayer->nextNodo;
-//------------------------6---------------------------
-        nodeFirstPlayer->p.cardSeed[0] = 1;
-        nodeFirstPlayer->p.cardValue[0] = 1;
-
-        nodeFirstPlayer->p.cardSeed[1] = 1;
-        nodeFirstPlayer->p.cardValue[1] = 1;
-
-        nodeFirstPlayer->p.cardSeed[2] = 1;
-        nodeFirstPlayer->p.cardValue[2] = 1;
-
-        nodeFirstPlayer->p.cardSeed[3] = 1;
-        nodeFirstPlayer->p.cardValue[3] = 1;
-
-        nodeFirstPlayer->p.cardSeed[4] = 1;
-        nodeFirstPlayer->p.cardValue[4] = 1;
-
-        while (nodeFirstPlayer->previousNodo != NULL) {
-            nodeFirstPlayer = nodeFirstPlayer->previousNodo;
-        }
-    }
-    //Normal Mode
-    if (feedCards == 0) {
-        assignCards(&flag, nodeFirstPlayer, nplayers);
-    }
-/*
-    //first round of bets
-    betting (nodeFirstPlayer, nplayers, &tableBet, &call, &raise);
-    raise = 0;
-
-    //swapping cards
-    swap(nodeFirstPlayer, nplayers, flag);
-
-    //second round of bets
-    betting (nodeFirstPlayer, nplayers, &tableBet, &call, &raise);
-*/
-    // ------------ CALCOLO PUNTI --------------
+void pointCalculator (struct node_player *nodeFirstPlayer, int nplayers) {
     while (nodeFirstPlayer->previousNodo != NULL) {
         nodeFirstPlayer = nodeFirstPlayer->previousNodo;
     }
@@ -1023,8 +880,7 @@ int main() {
                     printf("You did: \n\nThree of a Kind (Jack)\n");
                 } else if (tris == 12) {
                     printf("You did: \n\nThree of a Kind (Queen)\n");
-                }
-                else {
+                } else {
                     printf("You did: \n\nThree of a Kind (King)\n");
                 }
             }
@@ -1068,10 +924,230 @@ int main() {
                     printf("You did: \n\nHigh card with Ace\n");
                 }
             }
-            printf("Player %d, your score is: %d\n", nodeFirstPlayer->p.value, nodeFirstPlayer->p.score);
+            printf("Player %d, your score is: %d\n\n\n", nodeFirstPlayer->p.value, nodeFirstPlayer->p.score);
+        }
+        if (nodeFirstPlayer->nextNodo != NULL) {
+            nodeFirstPlayer = nodeFirstPlayer->nextNodo;
+        }
+    }
+    while (nodeFirstPlayer->previousNodo != NULL) {
+        nodeFirstPlayer = nodeFirstPlayer->previousNodo;
+    }
+}
+
+// Check Winner/s
+int winnerScore(struct node_player *nodeFirstPlayer, int nplayers) {
+    struct node_int winners;
+    winners.value = 0;
+    winners.nextNodo = NULL;
+    winners.previousNodo = NULL;
+    for (int i = 1; i < nplayers; i++) {
+        while (winners.previousNodo != NULL) {
+            winners = *winners.previousNodo;
+        }
+        if (get_player(*nodeFirstPlayer, i + 1).p.score >
+            get_player(*nodeFirstPlayer, winners.value + 1).p.score) {
+            insertFirst_int(&winners, i);
+            while (winners.previousNodo != NULL) {
+                removeLast_int(&winners);
+                while (winners.previousNodo != NULL) {
+                    winners = *winners.previousNodo;
+                }
+            }
+        }
+    }
+    winScore = get_player(*nodeFirstPlayer, winners.value + 1).p.score;
+    return winScore;
+}
+
+// Create Winners List
+int winnerList(struct node_player *nodeFirstPlayer ,struct node_int *winners, int nplayers) {
+    int j = 0;
+    int nWinners;
+    for (int i = 0; i < nplayers; i++) {
+        if (nodeFirstPlayer->p.score == winScore) {
+            j++;
+            insertFirst_int(winners, i + 1);
         }
         nodeFirstPlayer = nodeFirstPlayer->nextNodo;
     }
-
-    return 0;
+    removeLast_int(winners);
+    printLista_int(*winners);
+    nWinners = j;
+    return nWinners;
 }
+
+    int main() {
+        srand(time(0));
+        rules();
+        //Check number of players
+
+        printf("How many players are there?\n");
+        scanf("%d", &nplayers);
+        fflush(stdin);
+        while (nplayers != 2 && nplayers != 3 && nplayers != 4 && nplayers != 5 && nplayers != 6) {
+            printf("Incorrect input, please choose a number between 2 and 6\n");
+            scanf("%d", &nplayers);
+            fflush(stdin);
+        }
+
+        struct node_player *nodeFirstPlayer = initList(nplayers);
+
+        //ante: each player pays 1 fiche to enter the game
+        ante(nodeFirstPlayer, nplayers, &tableBet);
+        printf("All players paid 1 fiche for ante.\n");
+
+        //cards are assigned to each player
+        int feedCards = 0;
+        //Debug Mode
+        if (feedCards == 1) {
+//-----------------------1---------------------------
+            nodeFirstPlayer->p.cardSeed[0] = 3;
+            nodeFirstPlayer->p.cardValue[0] = 10;
+
+            nodeFirstPlayer->p.cardSeed[1] = 1;
+            nodeFirstPlayer->p.cardValue[1] = 10;
+
+            nodeFirstPlayer->p.cardSeed[2] = 1;
+            nodeFirstPlayer->p.cardValue[2] = 12;
+
+            nodeFirstPlayer->p.cardSeed[3] = 4;
+            nodeFirstPlayer->p.cardValue[3] = 10;
+
+            nodeFirstPlayer->p.cardSeed[4] = 1;
+            nodeFirstPlayer->p.cardValue[4] = 1;
+
+            nodeFirstPlayer = nodeFirstPlayer->nextNodo;
+//--------------------------2----------------------
+            nodeFirstPlayer->p.cardSeed[0] = 1;
+            nodeFirstPlayer->p.cardValue[0] = 10;
+
+            nodeFirstPlayer->p.cardSeed[1] = 2;
+            nodeFirstPlayer->p.cardValue[1] = 10;
+
+            nodeFirstPlayer->p.cardSeed[2] = 1;
+            nodeFirstPlayer->p.cardValue[2] = 1;
+
+            nodeFirstPlayer->p.cardSeed[3] = 1;
+            nodeFirstPlayer->p.cardValue[3] = 5;
+
+            nodeFirstPlayer->p.cardSeed[4] = 4;
+            nodeFirstPlayer->p.cardValue[4] = 10;
+
+            nodeFirstPlayer = nodeFirstPlayer->nextNodo;
+//------------------------3----------------------
+            nodeFirstPlayer->p.cardSeed[0] = 3;
+            nodeFirstPlayer->p.cardValue[0] = 4;
+
+            nodeFirstPlayer->p.cardSeed[1] = 1;
+            nodeFirstPlayer->p.cardValue[1] = 2;
+
+            nodeFirstPlayer->p.cardSeed[2] = 4;
+            nodeFirstPlayer->p.cardValue[2] = 4;
+
+            nodeFirstPlayer->p.cardSeed[3] = 2;
+            nodeFirstPlayer->p.cardValue[3] = 3;
+
+            nodeFirstPlayer->p.cardSeed[4] = 1;
+            nodeFirstPlayer->p.cardValue[4] = 7;
+
+            nodeFirstPlayer = nodeFirstPlayer->nextNodo;
+//------------------------4--------------------------
+            nodeFirstPlayer->p.cardSeed[0] = 1;
+            nodeFirstPlayer->p.cardValue[0] = 10;
+
+            nodeFirstPlayer->p.cardSeed[1] = 2;
+            nodeFirstPlayer->p.cardValue[1] = 1;
+
+            nodeFirstPlayer->p.cardSeed[2] = 2;
+            nodeFirstPlayer->p.cardValue[2] = 10;
+
+            nodeFirstPlayer->p.cardSeed[3] = 1;
+            nodeFirstPlayer->p.cardValue[3] = 11;
+
+            nodeFirstPlayer->p.cardSeed[4] = 1;
+            nodeFirstPlayer->p.cardValue[4] = 6;
+
+            nodeFirstPlayer = nodeFirstPlayer->nextNodo;
+//--------------------------5-----------------------------
+            nodeFirstPlayer->p.cardSeed[0] = 3;
+            nodeFirstPlayer->p.cardValue[0] = 9;
+
+            nodeFirstPlayer->p.cardSeed[1] = 1;
+            nodeFirstPlayer->p.cardValue[1] = 1;
+
+            nodeFirstPlayer->p.cardSeed[2] = 3;
+            nodeFirstPlayer->p.cardValue[2] = 7;
+
+            nodeFirstPlayer->p.cardSeed[3] = 1;
+            nodeFirstPlayer->p.cardValue[3] = 1;
+
+            nodeFirstPlayer->p.cardSeed[4] = 3;
+            nodeFirstPlayer->p.cardValue[4] = 5;
+
+            nodeFirstPlayer = nodeFirstPlayer->nextNodo;
+//------------------------6---------------------------
+            nodeFirstPlayer->p.cardSeed[1] = 4;
+            nodeFirstPlayer->p.cardValue[0] = 1;
+
+            nodeFirstPlayer->p.cardSeed[1] = 2;
+            nodeFirstPlayer->p.cardValue[1] = 11;
+
+            nodeFirstPlayer->p.cardSeed[2] = 1;
+            nodeFirstPlayer->p.cardValue[2] = 1;
+
+            nodeFirstPlayer->p.cardSeed[3] = 3;
+            nodeFirstPlayer->p.cardValue[3] = 4;
+
+            nodeFirstPlayer->p.cardSeed[4] = 1;
+            nodeFirstPlayer->p.cardValue[4] = 12;
+
+            while (nodeFirstPlayer->previousNodo != NULL) {
+                nodeFirstPlayer = nodeFirstPlayer->previousNodo;
+            }
+        }
+        //Normal Mode
+        if (feedCards == 0) {
+            assignCards(&flag, nodeFirstPlayer, nplayers);
+        }
+
+        //first round of bets
+        //betting(nodeFirstPlayer, nplayers, &tableBet, &call, &raise);
+        //raise = 0;
+
+        //swapping cards
+        //swap(nodeFirstPlayer, nplayers, flag);
+
+        //second round of bets
+        //betting(nodeFirstPlayer, nplayers, &tableBet, &call, &raise);
+
+        // ------------ CALCOLO PUNTI --------------
+        pointCalculator(nodeFirstPlayer, nplayers);
+
+        //CHECK WINNER/S
+
+        winScore = winnerScore(nodeFirstPlayer, nplayers);
+        struct node_int winners;
+        int nWinners;
+        winners.value = 0;
+        winners.nextNodo = NULL;
+        winners.previousNodo = NULL;
+
+        nWinners = winnerList(nodeFirstPlayer, &winners, nplayers);
+
+        //
+
+        if (nWinners == 1) {
+            printf("All's right with the world\n\n");
+            //Qui dentro metterò la funzione che dichiara il vincitore e da i soldi della bet
+        } else {
+            printf("Tocca fare altri calcoli\n\n");
+            //Qui dentro prima fa il sorting con le carte dei vincitori:
+                //Se dopo il sorting c'è un unico vincitore netto si fa come sopra
+                //altrimenti funzione che divide la vincita per ogni giocatore che ha effettivamente vinto
+        }
+
+        //INFINE HO DA METTERE QUI LA PARTE CHE GESTISCE LA FINE DEL TURNO
+
+        return 0;
+    }
