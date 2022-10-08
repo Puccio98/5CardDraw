@@ -49,6 +49,86 @@ int nTurns = 1;
 //endregion
 
 //region basic functions
+void payday(int tableBet, int nWinners, struct node_player *nodeFirstPlayer, int winnersPosition[]) {
+    tableBet = tableBet / nWinners;
+    for (int i = 0; i < nWinners; i++) {
+        get_player(nodeFirstPlayer, winnersPosition[i] + 1)->p.money += tableBet;
+        printf("Player %d, you won %d fiche/s!!\n", get_player(nodeFirstPlayer, winnersPosition[i] + 1)->p.value,
+               tableBet);
+    }
+}
+
+void determineWinners(struct node_int *winners, struct node_player *nodeFirstPlayer, int winnersPosition[], int *nWinners, int losers[], int nPlayers) {
+    while (winners->previousNodo != NULL) {
+        *winners = *winners->previousNodo;
+    }
+    for (int i = 0; i < *nWinners; i++) {
+        losers[winners->value - 1] = 0;
+        if (winners->nextNodo != NULL) {
+            *winners = *winners->nextNodo;
+        }
+    }
+    while (winners->previousNodo != NULL) {
+        *winners = *winners->previousNodo;
+    }
+    while (winners->nextNodo != NULL) {
+        for (int j = 0; j < nplayers; j++) {
+            if (get_player(nodeFirstPlayer, winners->value)->p.cardValue[4 - j] == 1 ||
+                get_player(nodeFirstPlayer, winners->nextNodo->value)->p.cardValue[4 - j] == 1) {
+                printf("At least one has Ace\n");
+                if (get_player(nodeFirstPlayer, winners->value)->p.cardValue[4 - j] >
+                    get_player(nodeFirstPlayer, winners->value + 1)->p.cardValue[4 - j]) {
+                    j = nPlayers;
+                    losers[winners->value - 1] = 9;
+                    printf("Player %d in losers array\n", get_player(nodeFirstPlayer, winners->value)->p.value);
+                } else if (get_player(nodeFirstPlayer, winners->value)->p.cardValue[4 - j] <
+                           get_player(nodeFirstPlayer, winners->nextNodo->value)->p.cardValue[4 - j]) {
+                    j = nPlayers;
+                    losers[winners->nextNodo->value - 1] = 9;
+                    printf("Player %d in losers array\n", get_player(nodeFirstPlayer, winners->value + 1)->p.value);
+                } else {
+                    printf("both have ace\n");
+                }
+            } else if (get_player(nodeFirstPlayer, winners->value)->p.cardValue[j] >
+                       get_player(nodeFirstPlayer, winners->nextNodo->value)->p.cardValue[j]) {
+                printf("No one has Ace\n");
+                j = nPlayers;
+                losers[winners->nextNodo->value - 1] = 9;
+                printf("Player %d in losers array\n", get_player(nodeFirstPlayer, winners->value + 1)->p.value);
+            } else if (get_player(nodeFirstPlayer, winners->value)->p.cardValue[j] <
+                       get_player(nodeFirstPlayer, winners->nextNodo->value)->p.cardValue[j]) {
+                j = nPlayers;
+                losers[winners->value - 1] = 9;
+                printf("Player %d in losers array\n", get_player(nodeFirstPlayer, winners->value)->p.value);
+            }
+        }
+        if (winners->nextNodo != NULL) {
+            *winners = *winners->nextNodo;
+        }
+    }
+    while (winners->previousNodo != NULL) {
+        *winners = *winners->previousNodo;
+    }
+    *nWinners = 0;
+    int j = 0;
+    for (int i = 0; i < 6; i++) {
+        if (losers[i] == 0) {
+            *nWinners = *nWinners + 1;
+            winnersPosition[j] = i;
+            j++;
+        }
+    }
+}
+
+void sortWinnerCards(struct node_player *nodeFirstPlayer, int nPlayers) {
+    for (int i = 0; i < nplayers; i++) {
+        sortArrayDesc(nodeFirstPlayer->p.cardValue, 5);
+        if (nodeFirstPlayer->nextNodo != NULL) {
+            nodeFirstPlayer = nodeFirstPlayer->nextNodo;
+        }
+    }
+}
+
 int remainingPlayers(struct node_player *_nodo, int nplayers) {
     int remainingPlayers = nplayers;
     for (int i = 0; i < nplayers; i++) {
@@ -108,6 +188,7 @@ void printPlayerInfo(struct node_player *node, int *call) {
     printf("-------------------------PLAYER %d-------------------------\n", node->p.value);
     printf("Player info:\nMoney:  %d\nCurrent Bet: %d\n", node->p.money, node->p.currentBet);
     printf("Call: %d\n", *call);
+    printf("DEBUG INFO:\nRAISE: %d\nTABLEBET: %d\nHASFOLDED: %d\nISDEAD: %d\nALLIN: %d\n", raise, tableBet, node->p.hasFolded, node->p.isDead, node->p.allIn);
     printcards(*node, node->p.value);
 }
 
@@ -148,12 +229,20 @@ char CF(char answer) {
 }
 
 void ante(struct node_player *player, int nplayers, int *tableBet) {
+    int j = 0;
     for (int i = 0; i < nplayers; i++) {
-        player->p.money--;
-        player->p.currentBet++;
+        if (player->p.isDead == 0) {
+            player->p.money--;
+            player->p.currentBet++;
+            if (player->p.money == 0) {
+                printf("Player %d, due to ante you went all-in\n", player->p.value);
+                player->p.allIn = 1;
+            }
+            j++;
+        }
         player = player->nextNodo;
     }
-    *tableBet = nplayers;
+    *tableBet = j;
 }
 
 void shuffleDeck(int deck[4][13]) {
@@ -166,10 +255,10 @@ void shuffleDeck(int deck[4][13]) {
 
 void InitializeValues(struct node_player *nodeFirstPlayer, int nplayers, int *deadPlayers, int flag, int *nTurns,
                       int *losers, int *call, int *raise, int *tableBet, int *winScore) {
-    call = 0;
-    raise = 0;
-    tableBet = 0;
-    winScore = 0;
+    *call = 1;
+    *raise = 0;
+    *tableBet = 0;
+    *winScore = 0;
     losers[0] = 9;
     losers[1] = 9;
     losers[2] = 9;
@@ -180,26 +269,18 @@ void InitializeValues(struct node_player *nodeFirstPlayer, int nplayers, int *de
         nodeFirstPlayer = nodeFirstPlayer->previousNodo;
     }
     for (int i = 0; i < nplayers; i++) {
+        if (nodeFirstPlayer->p.money < 1 && nodeFirstPlayer->p.isDead == 0) {
+            printf("Player %d, you ran out of money and lost\n", nodeFirstPlayer->p.value);
+            nodeFirstPlayer->p.isDead = 1;
+            *deadPlayers += 1;
+        }
         nodeFirstPlayer->p.hasFolded = 0;
         nodeFirstPlayer->p.score = 0;
         nodeFirstPlayer->p.currentBet = 0;
         nodeFirstPlayer->p.allIn = 0;
-        if (nodeFirstPlayer->p.money == 0) {
-            nodeFirstPlayer->p.isDead = 1;
-            deadPlayers++;
-        }
         if (nodeFirstPlayer->nextNodo != NULL) {
             nodeFirstPlayer = nodeFirstPlayer->nextNodo;
         }
-    }
-}
-
-void nextNode(struct node_player *player, int *isLastPlayer) {
-    while (player->nextNodo != NULL && player->p.hasFolded == 1) {
-        player = player->nextNodo;
-    }
-    if (player->nextNodo == NULL) {
-        *isLastPlayer = 1;
     }
 }
 
@@ -211,22 +292,16 @@ void betting(struct node_player *player, int nplayers, int *tableBet, int *call,
             printPlayerInfo(player, call);
             answer = CRF(answer);
             if (answer == 'c' || answer == 'C') {
-                if (*call >= player->p.money) {
+                if (*call - player->p.currentBet >= player->p.money) {
                     printf("You went all-in\n");
                     player->p.allIn = 1;
                     player->p.currentBet += player->p.money;
                     *tableBet += player->p.money;
                     player->p.money = 0;
-                    if (player->nextNodo != NULL) {
-                        player = player->nextNodo;
-                    } else { isLastPlayer = 1; }
                 } else {
                     player->p.currentBet = *call;
                     *tableBet = *tableBet + *raise;
                     player->p.money = player->p.money - *raise;
-                    if (player->nextNodo != NULL) {
-                        player = player->nextNodo;
-                    } else { isLastPlayer = 1; }
                 }
             } else if (answer == 'r' || answer == 'R') {
                 *tableBet = *tableBet + *raise;
@@ -238,9 +313,6 @@ void betting(struct node_player *player, int nplayers, int *tableBet, int *call,
                     player->p.currentBet += player->p.money;
                     player->p.money = 0;
                     *tableBet = *tableBet - *raise;
-                    if (player->nextNodo != NULL) {
-                        player = player->nextNodo;
-                    } else { isLastPlayer = 1; }
                 } else if (player->p.money < 0) {
                     player->p.allIn = 1;
                     printf("You can't raise more, you went all-in\n");
@@ -249,13 +321,14 @@ void betting(struct node_player *player, int nplayers, int *tableBet, int *call,
                     tableBet = tableBet - *raise;
                     tableBet += player->p.money;
                     player->p.money = 0;
-                    if (player->nextNodo != NULL) {
-                        player = player->nextNodo;
-                    } else { isLastPlayer = 1; }
                 } else {
                     printf("By how much do you want to raise?\n");
                     scanf("%d*d", raise);
                     fflush(stdin);
+                    if (*raise == player->p.money){
+                        printf("You went all-in\n");
+                        player->p.allIn = 1;
+                    }
                     while (*raise > player->p.money || *raise < 1) {
                         printf("Incorrect input: please enter a positive amount lower than your current money: %d fiches.\n",
                                player->p.money);
@@ -268,23 +341,14 @@ void betting(struct node_player *player, int nplayers, int *tableBet, int *call,
                     *call = player->p.currentBet;
                     *tableBet = *tableBet + *raise;
                     *raise = *call - tmpBet;
-                    if (player->nextNodo != NULL) {
-                        player = player->nextNodo;
-                    } else { isLastPlayer = 1; }
                 }
             } else {
                 player->p.hasFolded = 1;
-                if (player->nextNodo != NULL) {
-                    player = player->nextNodo;
-                } else isLastPlayer = 1;
             }
         } else if (player->p.hasFolded == 0 && player->p.isDead == 0 && player->p.allIn == 0) {
             printPlayerInfo(player, call);
             answer = CR(answer);
             if (answer == 'c' || answer == 'C') {
-                if (player->nextNodo != NULL) {
-                    player = player->nextNodo;
-                } else { isLastPlayer = 1; }
             } else {
                 if (player->p.money == 0) {
                     printf("You can't raise while all-in\n");
@@ -294,6 +358,10 @@ void betting(struct node_player *player, int nplayers, int *tableBet, int *call,
                     printf("By how much do you want to raise?\n");
                     scanf("%d*d", raise);
                     fflush(stdin);
+                    if (*raise == player->p.money){
+                        printf("You went all-in\n");
+                        player->p.allIn = 1;
+                    }
                     while (*raise > player->p.money || *raise < 1) {
                         printf("Incorrect input: please enter an amount lower than your current money: %d fiches.\n",
                                player->p.money);
@@ -304,16 +372,12 @@ void betting(struct node_player *player, int nplayers, int *tableBet, int *call,
                     player->p.currentBet = player->p.currentBet + *raise;
                     *call = player->p.currentBet;
                     *tableBet = *tableBet + *raise;
-                    if (player->nextNodo != NULL) {
-                        player = player->nextNodo;
-                    } else { isLastPlayer = 1; }
                 }
             }
-        } else {
-            if (player->nextNodo != NULL) {
-                player = player->nextNodo;
-            } else { isLastPlayer = 1; }
         }
+        if (player->nextNodo != NULL) {
+            player = player->nextNodo;
+        } else { isLastPlayer = 1; }
     }
     isLastPlayer = 0;
     //BET SECOND PART
@@ -326,26 +390,21 @@ void betting(struct node_player *player, int nplayers, int *tableBet, int *call,
             char answer = 'p';
             answer = CF(answer);
             if (answer == 'c' || answer == 'C') {
-                if (*call >= player->p.money) {
+                if (*call - player->p.currentBet >= player->p.money) {
                     printf("You went all-in\n");
+                    player->p.allIn = 1;
                     player->p.currentBet += player->p.money;
                     *tableBet += player->p.money;
                     player->p.money = 0;
-                    if (player->nextNodo != NULL) {
-                        player = player->nextNodo;
-                    } else { isLastPlayer = 1; }
+                } else {
+                    player->p.money = player->p.money + player->p.currentBet;
+                    *tableBet = *tableBet + (*call - player->p.currentBet);
+                    player->p.currentBet = *call;
+                    player->p.money = player->p.money - *call;
                 }
-                player->p.money = player->p.money + player->p.currentBet;
-                *tableBet = *tableBet + (*call - player->p.currentBet);
-                player->p.currentBet = *call;
-                player->p.money = player->p.money - *call;
-                if (player->nextNodo != NULL) {
-                    player = player->nextNodo;
-                } else { isLastPlayer = 1; }
             } else {
                 player->p.hasFolded = 1;
             }
-            nextNode(player, &isLastPlayer);
         }
         if (player->nextNodo != NULL) {
             player = player->nextNodo;
@@ -767,7 +826,6 @@ int checkHighCard(int card[], int *highCard) {
     return *highCard;
 }
 //endregion
-
 void pointCalculator(struct node_player *nodeFirstPlayer, int nplayers) {
     while (nodeFirstPlayer->previousNodo != NULL) {
         nodeFirstPlayer = nodeFirstPlayer->previousNodo;
@@ -932,7 +990,7 @@ void pointCalculator(struct node_player *nodeFirstPlayer, int nplayers) {
                     printf("You did:\nHigh card with Ace\n");
                 }
             }
-        }
+        } else { nodeFirstPlayer->p.score = 0; }
         if (nodeFirstPlayer->nextNodo != NULL) {
             nodeFirstPlayer = nodeFirstPlayer->nextNodo;
         }
@@ -950,9 +1008,6 @@ int winnerScore(struct node_player *nodeFirstPlayer, int nplayers) {
     winners.nextNodo = NULL;
     winners.previousNodo = NULL;
     for (int i = 1; i < nplayers; i++) {
-        while (nodeFirstPlayer->previousNodo != NULL) {
-            nodeFirstPlayer = nodeFirstPlayer->previousNodo;
-        }
         if (get_player(nodeFirstPlayer, i + 1)->p.score >
             get_player(nodeFirstPlayer, winners.value + 1)->p.score) {
             insertLast_int(&winners, i);
@@ -967,7 +1022,6 @@ int winnerScore(struct node_player *nodeFirstPlayer, int nplayers) {
     winScore = get_player(nodeFirstPlayer, winners.value + 1)->p.score;
     return winScore;
 }
-
 // Create Winners List
 int winnerList(struct node_player *nodeFirstPlayer, struct node_int *winners, int nplayers) {
     int j = 0;
@@ -1008,58 +1062,58 @@ int main() {
         ante(nodeFirstPlayer, nplayers, &tableBet);
         printf("All players paid 1 fiche for ante.\n");
         //cards are assigned to each player
-        int feedCards = 0;
+        int feedCards = 1;
         //Debug Mode
         if (feedCards == 1) {
 //-----------------------1---------------------------
-            nodeFirstPlayer->p.cardSeed[0] = 3;
-            nodeFirstPlayer->p.cardValue[0] = 13;
+            nodeFirstPlayer->p.cardSeed[0] = 1;
+            nodeFirstPlayer->p.cardValue[0] = 5;
 
-            nodeFirstPlayer->p.cardSeed[1] = 1;
-            nodeFirstPlayer->p.cardValue[1] = 13;
+            nodeFirstPlayer->p.cardSeed[1] = 3;
+            nodeFirstPlayer->p.cardValue[1] = 5;
 
             nodeFirstPlayer->p.cardSeed[2] = 1;
-            nodeFirstPlayer->p.cardValue[2] = 13;
+            nodeFirstPlayer->p.cardValue[2] = 5;
 
-            nodeFirstPlayer->p.cardSeed[3] = 4;
-            nodeFirstPlayer->p.cardValue[3] = 7;
+            nodeFirstPlayer->p.cardSeed[3] = 2;
+            nodeFirstPlayer->p.cardValue[3] = 6;
 
             nodeFirstPlayer->p.cardSeed[4] = 1;
             nodeFirstPlayer->p.cardValue[4] = 13;
 
             nodeFirstPlayer = nodeFirstPlayer->nextNodo;
 //--------------------------2----------------------
-            nodeFirstPlayer->p.cardSeed[0] = 1;
-            nodeFirstPlayer->p.cardValue[0] = 9;
+            nodeFirstPlayer->p.cardSeed[0] = 4;
+            nodeFirstPlayer->p.cardValue[0] = 5;
 
-            nodeFirstPlayer->p.cardSeed[1] = 2;
-            nodeFirstPlayer->p.cardValue[1] = 10;
+            nodeFirstPlayer->p.cardSeed[1] = 1;
+            nodeFirstPlayer->p.cardValue[1] = 7;
 
-            nodeFirstPlayer->p.cardSeed[2] = 1;
-            nodeFirstPlayer->p.cardValue[2] = 1;
+            nodeFirstPlayer->p.cardSeed[2] = 4;
+            nodeFirstPlayer->p.cardValue[2] = 5;
 
-            nodeFirstPlayer->p.cardSeed[3] = 1;
-            nodeFirstPlayer->p.cardValue[3] = 5;
+            nodeFirstPlayer->p.cardSeed[3] = 3;
+            nodeFirstPlayer->p.cardValue[3] = 6;
 
-            nodeFirstPlayer->p.cardSeed[4] = 4;
-            nodeFirstPlayer->p.cardValue[4] = 10;
+            nodeFirstPlayer->p.cardSeed[4] = 3;
+            nodeFirstPlayer->p.cardValue[4] = 9;
 
             nodeFirstPlayer = nodeFirstPlayer->nextNodo;
 //------------------------3----------------------
-            nodeFirstPlayer->p.cardSeed[0] = 3;
-            nodeFirstPlayer->p.cardValue[0] = 10;
+            nodeFirstPlayer->p.cardSeed[0] = 2;
+            nodeFirstPlayer->p.cardValue[0] = 5;
 
-            nodeFirstPlayer->p.cardSeed[1] = 1;
-            nodeFirstPlayer->p.cardValue[1] = 1;
+            nodeFirstPlayer->p.cardSeed[1] = 4;
+            nodeFirstPlayer->p.cardValue[1] = 5;
 
-            nodeFirstPlayer->p.cardSeed[2] = 4;
-            nodeFirstPlayer->p.cardValue[2] = 10;
+            nodeFirstPlayer->p.cardSeed[2] = 3;
+            nodeFirstPlayer->p.cardValue[2] = 5;
 
-            nodeFirstPlayer->p.cardSeed[3] = 2;
-            nodeFirstPlayer->p.cardValue[3] = 10;
+            nodeFirstPlayer->p.cardSeed[3] = 3;
+            nodeFirstPlayer->p.cardValue[3] = 6;
 
-            nodeFirstPlayer->p.cardSeed[4] = 1;
-            nodeFirstPlayer->p.cardValue[4] = 2;
+            nodeFirstPlayer->p.cardSeed[4] = 2;
+            nodeFirstPlayer->p.cardValue[4] = 1;
 
             nodeFirstPlayer = nodeFirstPlayer->nextNodo;
 //------------------------4--------------------------
@@ -1069,13 +1123,13 @@ int main() {
             nodeFirstPlayer->p.cardSeed[1] = 2;
             nodeFirstPlayer->p.cardValue[1] = 1;
 
-            nodeFirstPlayer->p.cardSeed[2] = 2;
+            nodeFirstPlayer->p.cardSeed[2] = 1;
             nodeFirstPlayer->p.cardValue[2] = 10;
 
             nodeFirstPlayer->p.cardSeed[3] = 1;
             nodeFirstPlayer->p.cardValue[3] = 11;
 
-            nodeFirstPlayer->p.cardSeed[4] = 1;
+            nodeFirstPlayer->p.cardSeed[4] = 4;
             nodeFirstPlayer->p.cardValue[4] = 6;
 
             nodeFirstPlayer = nodeFirstPlayer->nextNodo;
@@ -1089,7 +1143,7 @@ int main() {
             nodeFirstPlayer->p.cardSeed[2] = 3;
             nodeFirstPlayer->p.cardValue[2] = 7;
 
-            nodeFirstPlayer->p.cardSeed[3] = 1;
+            nodeFirstPlayer->p.cardSeed[3] = 4;
             nodeFirstPlayer->p.cardValue[3] = 1;
 
             nodeFirstPlayer->p.cardSeed[4] = 3;
@@ -1097,17 +1151,17 @@ int main() {
 
             nodeFirstPlayer = nodeFirstPlayer->nextNodo;
 //------------------------6---------------------------
-            nodeFirstPlayer->p.cardSeed[0] = 4;
-            nodeFirstPlayer->p.cardValue[0] = 10;
+            nodeFirstPlayer->p.cardSeed[0] = 2;
+            nodeFirstPlayer->p.cardValue[0] = 5;
 
-            nodeFirstPlayer->p.cardSeed[1] = 2;
-            nodeFirstPlayer->p.cardValue[1] = 1;
+            nodeFirstPlayer->p.cardSeed[1] = 3;
+            nodeFirstPlayer->p.cardValue[1] = 5;
 
             nodeFirstPlayer->p.cardSeed[2] = 1;
-            nodeFirstPlayer->p.cardValue[2] = 10;
+            nodeFirstPlayer->p.cardValue[2] = 5;
 
             nodeFirstPlayer->p.cardSeed[3] = 3;
-            nodeFirstPlayer->p.cardValue[3] = 2;
+            nodeFirstPlayer->p.cardValue[3] = 6;
 
             nodeFirstPlayer->p.cardSeed[4] = 1;
             nodeFirstPlayer->p.cardValue[4] = 10;
@@ -1142,7 +1196,8 @@ int main() {
         // ------------ CALCOLO PUNTI --------------
         pointCalculator(nodeFirstPlayer, nplayers);
 
-        //CHECK WINNER/S
+        printf("----------------------------------------------------------\n");
+
         winScore = winnerScore(nodeFirstPlayer, nplayers);
         struct node_int winners;
         int nWinners;
@@ -1151,78 +1206,15 @@ int main() {
         winners.value = 0;
         winners.nextNodo = NULL;
         winners.previousNodo = NULL;
-        printf("WINNER SCORE: %d\n", winScore);
         nWinners = winnerList(nodeFirstPlayer, &winners, nplayers);
         winners = *winners.nextNodo;
 
+        sortWinnerCards(nodeFirstPlayer, nplayers);
 
-        //Sorting
-        for (int i = 0; i < nplayers; i++) {
-            sortArrayDesc(nodeFirstPlayer->p.cardValue, 5);
-            if (nodeFirstPlayer->nextNodo != NULL) {
-                nodeFirstPlayer = nodeFirstPlayer->nextNodo;
-            }
-        }
-        //Compare
-        printf("----------------COMPARE------------------\n");
-        printLista_int(winners);
+        determineWinners(&winners, nodeFirstPlayer, winnersPosition, &nWinners, losers, nplayers);
 
-        while (winners.previousNodo != NULL) {
-            winners = *winners.previousNodo;
-        }
-        for (int i = 0; i < nWinners; i++) {
-            losers[winners.value - 1] = 0;
-            if (winners.nextNodo != NULL) {
-                winners = *winners.nextNodo;
-            }
-        }
-        while (winners.previousNodo != NULL) {
-            winners = *winners.previousNodo;
-        }
-        while (winners.nextNodo != NULL) {
-            for (int j = 0; j < 5; j++) {
-                if (get_player(nodeFirstPlayer, winners.value)->p.cardValue[4 - j] == 1 ||
-                    get_player(nodeFirstPlayer, winners.nextNodo->value)->p.cardValue[4 - j] == 1) {
-                    if (get_player(nodeFirstPlayer, winners.value)->p.cardValue[4 - j] >
-                        get_player(nodeFirstPlayer, winners.value + 1)->p.cardValue[4 - j]) {
-                        j = 5;
-                        losers[winners.value - 1] = 9;
-                    } else if (get_player(nodeFirstPlayer, winners.value)->p.cardValue[4 - j] <
-                               get_player(nodeFirstPlayer, winners.nextNodo->value)->p.cardValue[4 - j]) {
-                        j = 5;
-                        losers[winners.nextNodo->value - 1] = 9;
-                    }
-                } else if (get_player(nodeFirstPlayer, winners.value)->p.cardValue[j] >
-                           get_player(nodeFirstPlayer, winners.nextNodo->value)->p.cardValue[j]) {
-                    j = 5;
-                    losers[winners.nextNodo->value - 1] = 9;
-                } else if (get_player(nodeFirstPlayer, winners.value)->p.cardValue[j] <
-                           get_player(nodeFirstPlayer, winners.nextNodo->value)->p.cardValue[j]) {
-                    j = 5;
-                    losers[winners.value - 1] = 9;
-                }
-            }
-            if (winners.nextNodo != NULL) {
-                winners = *winners.nextNodo;
-            }
-        }
-        while (winners.previousNodo != NULL) {
-            winners = *winners.previousNodo;
-        }
-        nWinners = 0;
-        int j = 0;
-        for (int i = 0; i < 6; i++) {
-            if (losers[i] == 0) {
-                nWinners++;
-                winnersPosition[j] = i;
-                j++;
-            }
-        }
-        tableBet = tableBet / nWinners;
-        for (int i = 0; i < nWinners; i++) {
-            get_player(nodeFirstPlayer, winnersPosition[i] + 1)->p.money += tableBet;
-        }
-        //INITIALIZE VALUES
+        payday(tableBet, nWinners, nodeFirstPlayer, winnersPosition);
+
         InitializeValues(nodeFirstPlayer, nplayers, &deadPlayers, flag, &nTurns, &losers, &call, &raise, &tableBet,
                          &winScore);
         shuffleDeck(flag);
